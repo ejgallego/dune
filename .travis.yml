@@ -36,6 +36,17 @@ matrix:
         packages:
         - aspcud
   - os: linux
+    stage: test
+    install:
+      - opam switch remove -y 4.10.0 || true
+      - opam switch create 4.10.0 --empty
+      - eval $(opam env)
+      - opam repo add ocaml-beta https://github.com/ocaml/ocaml-beta-repository.git
+      - opam update
+      - opam install ocaml-variants=4.10.0+trunk
+    script:
+      - make release
+  - os: linux
     env: OCAML_VERSION=4.05 OCAML_RELEASE=0 WITH_OPAM=1
     stage: Test
     addons:
