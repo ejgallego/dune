@@ -22,7 +22,7 @@ opam_install_test_deps () {
          # coq
 }
 
-if [ ${OCAML_VERSION//./} -lt 406 ] ; then
+if [ ${OCAML_VERSION//./} -lt 405 ] ; then
   OLD_OCAML=1
 else
   OLD_OCAML=0

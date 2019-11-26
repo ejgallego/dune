@@ -1,6 +1,8 @@
 2.1.0 (unreleased)
 ------------------
 
+- Add back support for OCaml 4.05 (, @ejgallego)
+
 - Add variables `%{lib-private...}` and `%{libexec-private...}` for finding
   build paths of files in public and private libraries within the same
   project. (#2901, @snowleopard)

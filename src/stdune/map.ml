@@ -15,7 +15,11 @@ module Make (Key : Key) : S with type key = Key.t = struct
 
   let set t k v = add ~key:k ~data:v t
 
-  let update t k ~f = update ~key:k ~f t
+  (* Use update in OCaml >= 4.06 *)
+  let update t (k : Key.t) ~f =
+    match f (find_opt k t) with
+    | Some v -> add ~key:k ~data:v t
+    | None -> remove k t
 
   let add_exn t key v =
     update t key ~f:(function
