@@ -121,8 +121,12 @@ let peek_file fn =
           dirty := true;
           x.size <- stat.st_size
         );
+        let odigest = x.digest in
         if !dirty then x.digest <- Digest.file_with_stats fn stat;
         x.stats_checked <- cache.checked_key;
+        if not (Digest.equal odigest x.digest) then
+          Format.eprintf "digest changed for %a [%s/%s]@\n"
+            Path.pp fn (Digest.to_string odigest) (Digest.to_string x.digest);
         x.digest
       ) )
 
