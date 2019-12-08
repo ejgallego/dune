@@ -73,6 +73,26 @@ module T = struct
       (* recorded globally for the whole dep set *)
       None
 
+  let pp_dd fmt (s,d) =
+    Format.fprintf fmt "%s %s" s (Digest.to_string d)
+
+  let pp_trace fmt (t : Trace.Fact.t) =
+    let open Format in
+    match t with
+    | Trace.Fact.Env (e, o) ->
+      let o = Option.value ~default:"[None]" o in
+      fprintf fmt "[d]env: %s | %s @\n" e o
+    | Trace.Fact.File (f, d) ->
+      fprintf fmt "[d]file: %s | %s @\n" f (Digest.to_string d)
+    | Trace.Fact.File_selector (d, l) ->
+      fprintf fmt "[d]file_selector: %s | @[<hov>%a@]" (Dyn.to_string d)
+        (Fmt.list pp_dd) l
+
+  let trace t ~sandbox_mode ~env ~eval_pred : Trace.Fact.t Option.t =
+    let t = trace t ~sandbox_mode ~env ~eval_pred in
+    Option.iter ~f:(pp_trace Format.err_formatter) t;
+    t
+
   let encode t =
     let open Dune_lang.Encoder in
     let sandbox_mode (mode : Sandbox_mode.t) =
