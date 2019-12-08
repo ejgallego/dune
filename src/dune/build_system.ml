@@ -5,6 +5,35 @@ module Pre_rule = Rule
 
 let () = Hooks.End_of_build.always Memo.reset
 
+let print_dep fmt (d : Dep.t) : unit =
+  let open Format in
+  match d with
+  | Dep.Env e ->
+    fprintf fmt "env: %s@\n" e
+  | Dep.File f ->
+    fprintf fmt "file: %a@\n" Path.pp f
+  | Dep.Alias a ->
+    fprintf fmt "alias: %a@\n" Alias.pp a
+  | Dep.File_selector f ->
+    let fs = File_selector.to_dyn f in
+    fprintf fmt "file_selector: %a@\n" Pp.render_ignore_tags (Dyn.pp fs)
+  | Dep.Universe ->
+    fprintf fmt "universe@\n"
+  | Dep.Sandbox_config s ->
+    let { Sandbox_mode.Dict.none; symlink; copy } = s in
+    fprintf fmt "sandbox [none: %b | sym: %b | copy: %b]@\n" none symlink copy
+
+let print_target fmt (t : Action.target) : unit =
+  Format.fprintf fmt "target: %a @\n" Path.Build.pp t
+
+let print_dep_set (d : Dep.Set.t) (t : Action.target list) : unit =
+  let fmt = Format.err_formatter in
+  Format.eprintf "deps: @\n";
+  Dep.Set.iter ~f:(print_dep fmt) d;
+  Format.eprintf "targets: @\n";
+  List.iter ~f:(print_target fmt) t;
+  Format.eprintf "%!"
+
 module Fs : sig
   val mkdir_p : Path.Build.t -> unit
 
@@ -1435,6 +1464,7 @@ end = struct
     (* Here we determine if we need to rerun the action based on information
        stored in Trace_db. *)
     let* rule_need_rerun =
+      if always_rerun then Format.eprintf "always_rerun: %b@\n%!" always_rerun;
       if always_rerun then
         Fiber.return true
       else
@@ -1448,6 +1478,34 @@ end = struct
             prev_trace.rule_digest <> rule_digest
             || prev_trace.targets_digest <> targets_digest
           | _ -> true
+        in
+        let* () =
+          if rule_or_targets_changed then
+            let () = Format.eprintf "rule_or_targets_changed:@\n%!" in
+            Fiber.return ()
+          else
+            Fiber.return ()
+        in
+        let* () =
+          match prev_trace, targets_digest with
+          | Some prev_trace, Some targets_digest ->
+            if prev_trace.rule_digest <> rule_digest then
+              let () = Format.eprintf "rule_changed:@\n%!" in
+              Fiber.return @@ print_dep_set deps targets_as_list
+            else if prev_trace.targets_digest <> targets_digest then
+              let () = Format.eprintf "targets_changed:@\n%!" in
+              Fiber.return @@ print_dep_set deps targets_as_list
+            else
+              Fiber.return ()
+          | None, Some _ ->
+            let () = Format.eprintf "no previous trace@\n%!" in
+            Fiber.return @@ print_dep_set deps targets_as_list
+          | Some _, None ->
+            let () = Format.eprintf "no targets digest@\n%!" in
+            Fiber.return @@ print_dep_set deps targets_as_list
+          | None, None ->
+            let () = Format.eprintf "no targets digest and no previous trace@\n%!" in
+            Fiber.return @@ print_dep_set deps targets_as_list
         in
         if rule_or_targets_changed then
           Fiber.return true
@@ -1465,6 +1523,13 @@ end = struct
               let* () = build_deps deps in
               let new_digest =
                 compute_dependencies_digest deps ~sandbox_mode ~env ~eval_pred
+              in
+              let* () =
+                if old_digest <> new_digest then
+                  let () = Format.eprintf "digest changed:@\n" in
+                  Fiber.return @@ print_dep_set deps targets_as_list
+                else
+                  Fiber.return ()
               in
               if old_digest <> new_digest then
                 Fiber.return true
