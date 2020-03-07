@@ -362,7 +362,7 @@ let install_rules ~sctx ~dir s =
                  vofile) ))
     |> List.rev_append coq_plugins_install_rules
 
-let coqpp_rules ~sctx ~build_dir ~dir (s : Dune_file.Coqpp.t) =
+let coqpp_rules ~sctx ~build_dir ~dir ~dir_contents (s : Dune_file.Coqpp.t) =
   let cc = create_ccoq sctx ~dir in
   let mlg_rule m =
     let source = Path.build (Path.Build.relative dir (m ^ ".mlg")) in
@@ -370,4 +370,8 @@ let coqpp_rules ~sctx ~build_dir ~dir (s : Dune_file.Coqpp.t) =
     let args = [ Command.Args.Dep source; Hidden_targets [ target ] ] in
     Command.run ~dir:(Path.build build_dir) cc.coqpp args
   in
-  List.map ~f:mlg_rule s.modules
+  let parse ~loc:_ m = m in
+  let eq = String.equal in
+  let standard = Coq_sources.mlg (Dir_contents.coq dir_contents) in
+  let modules = Ordered_set_lang.eval s.modules ~parse ~eq ~standard in
+  List.map ~f:mlg_rule modules

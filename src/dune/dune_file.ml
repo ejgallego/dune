@@ -1962,13 +1962,13 @@ end
 
 module Coqpp = struct
   type t =
-    { modules : string list
+    { modules : Ordered_set_lang.t
     ; loc : Loc.t
     }
 
   let decode =
     fields
-      (let+ modules = field "modules" (repeat string)
+      (let+ modules = modules_field "modules"
        and+ loc = loc in
        { modules; loc })
 

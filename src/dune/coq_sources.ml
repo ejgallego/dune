@@ -4,9 +4,12 @@ open Stdune
    harmful?
 
    In Coq all libs are "wrapped" so including a module twice is not so bad. *)
-type t = { libraries : Coq_module.t list Coq_lib_name.Map.t }
+type t =
+  { libraries : Coq_module.t list Coq_lib_name.Map.t
+  ; mlgs : string list
+  }
 
-let empty = { libraries = Coq_lib_name.Map.empty }
+let empty = { libraries = Coq_lib_name.Map.empty; mlgs = [] }
 
 let coq_modules_of_files ~dirs =
   let filter_v_files (dir, local, files) =
@@ -34,6 +37,8 @@ let build_coq_modules_map (d : _ Dir_with_dune.t) ~dir ~modules =
 
 let library t ~name = Coq_lib_name.Map.find_exn t.libraries name
 
+let mlg t = t.mlgs
+
 let check_no_unqualified (loc, (qualif_mode : Dune_file.Include_subdirs.t)) =
   if qualif_mode = Include Unqualified then
     User_error.raise ~loc
@@ -44,4 +49,5 @@ let of_dir d ~include_subdirs ~dirs =
   { libraries =
       build_coq_modules_map d ~dir:d.ctx_dir
         ~modules:(coq_modules_of_files ~dirs)
+  ; mlgs = []
   }

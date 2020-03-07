@@ -1627,12 +1627,20 @@ writers avoid boilerplate we provide a `(coqpp ...)` stanza:
 
 which for each ``g_mod`` in ``<mlg_list>`` is equivalent to:
 
-.. code:: lisp
+.. code:: scheme
 
     (rule
      (targets g_mod.ml)
      (deps (:mlg-file g_mod.mlg))
      (action (run coqpp %{mlg-file})))
+
+``<mlg_list>`` is an :ref:`ordered-set-language` expression, thus you can write:
+
+.. code:: scheme
+
+    (coq.pp (modules :standard \ mod1))
+
+as is usual in the OCaml / Coq ``modules`` field.
 
 .. _dune-workspace:
 

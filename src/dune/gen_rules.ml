@@ -283,7 +283,7 @@ let gen_rules sctx dir_contents cctxs
         Coq_rules.setup_rules ~sctx ~build_dir ~dir:ctx_dir ~dir_contents m
         |> Super_context.add_rules ~dir:ctx_dir sctx
       | Coqpp.T m ->
-        Coq_rules.coqpp_rules ~sctx ~build_dir ~dir:ctx_dir m
+        Coq_rules.coqpp_rules ~sctx ~build_dir ~dir:ctx_dir ~dir_contents m
         |> Super_context.add_rules ~dir:ctx_dir sctx
       | _ -> ());
   define_all_alias ~dir:ctx_dir ~scope ~js_targets;
