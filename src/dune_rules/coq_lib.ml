@@ -85,6 +85,10 @@ module DB = struct
 
   let boot_library { boot; _ } = boot
 
+  let create ~resolve:_ =
+    (* let libs = resolve in *)
+    { boot = None; libs = Coq_lib_name.Map.empty }
+
   let create_from_stanza ((dir, s) : Path.Build.t * Coq_stanza.Theory.t) =
     let name = snd s.name in
     ( name
@@ -99,7 +103,7 @@ module DB = struct
       } )
 
   (* Should we register errors and printers, or raise is OK? *)
-  let create_from_coqlib_stanzas sl =
+  let create_from_coqlib_stanzas ~parent:_ sl =
     let libs =
       match Coq_lib_name.Map.of_list_map ~f:create_from_stanza sl with
       | Ok m -> m

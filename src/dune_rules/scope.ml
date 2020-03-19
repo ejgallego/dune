@@ -181,8 +181,36 @@ module DB = struct
       ~all:(fun () -> Lib_name.Map.keys public_libs)
       ~lib_config ()
 
+  let coq_public_libs t coq_stanzas =
+    let public_libs =
+      List.filter_map coq_stanzas ~f:(fun (stanza : _ * Coq_stanza.Theory.t) ->
+        match stanza with
+        | _, { project; package = Some _; name; _ } -> Some (snd name, project)
+        | _, { package = None; _ } -> None)
+      |> Coq_lib_name.Map.of_list
+      |> function
+      | Ok x -> x
+      | Error (name, _, _) ->
+        User_error.raise
+          [ Pp.textf "Public theory %s is defined twice:"
+              (Coq_lib_name.to_string name)
+          ]
+    in
+    let coq_resolve t (public_libs : Dune_project.t Coq_lib_name.Map.t)
+          (name : Coq_lib_name.t) : (Coq_lib.DB.t option * Coq_lib_name.t) Or_exn.t =
+      match Coq_lib_name.Map.find public_libs name with
+      | None ->
+        Error User_error.(E (make [Pp.text "coq_resolve: not_found"]))
+      | Some project ->
+        let scope = find_by_project (Fdecl.get t) project in
+        Ok (Some scope.coq_db, name)
+    in
+    let resolve = coq_resolve t public_libs in
+    Coq_lib.DB.create ~resolve
+
   let scopes_by_dir context ~projects_by_package ~modules_of_lib ~projects
-      ~public_libs stanzas coq_stanzas =
+      ~public_libs ~coq_public_libs stanzas coq_stanzas =
+
     let projects_by_dir =
       List.map projects ~f:(fun (project : Dune_project.t) ->
           (Dune_project.root project, project))
@@ -221,7 +249,7 @@ module DB = struct
           create_db_from_stanzas stanzas ~parent:public_libs ~modules_of_lib
             ~projects_by_package ~lib_config
         in
-        let coq_db = Coq_lib.DB.create_from_coqlib_stanzas coq_stanzas in
+        let coq_db = Coq_lib.DB.create_from_coqlib_stanzas ~parent:coq_public_libs coq_stanzas in
         let root =
           Path.Build.append_source context.build_dir (Dune_project.root project)
         in
@@ -235,9 +263,10 @@ module DB = struct
       public_libs t ~installed_libs ~lib_config ~projects_by_package
         ~modules_of_lib stanzas
     in
+    let coq_public_libs = coq_public_libs t coq_stanzas in
     let by_dir =
       scopes_by_dir context ~projects ~projects_by_package ~public_libs
-        ~modules_of_lib stanzas coq_stanzas
+        ~modules_of_lib ~coq_public_libs stanzas coq_stanzas
     in
     let value = { by_dir } in
     Fdecl.set t value;

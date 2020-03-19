@@ -29,8 +29,11 @@ module DB : sig
 
   type t
 
+  val create :
+    resolve:(Coq_lib_name.t -> (t option * Coq_lib_name.t) Or_exn.t) -> t
+
   val create_from_coqlib_stanzas :
-    (Path.Build.t * Coq_stanza.Theory.t) list -> t
+    parent:t -> (Path.Build.t * Coq_stanza.Theory.t) list -> t
 
   val find_many : t -> loc:Loc.t -> Coq_lib_name.t list -> lib list Or_exn.t
 
