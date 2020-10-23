@@ -25,12 +25,24 @@ val obj_root : t -> Path.Build.t
 val package : t -> Package.t option
 
 module DB : sig
+
   type lib
 
   type t
 
+  module Resolve_result : sig
+
+    type t
+
+    val not_found : t
+
+    val found : lib -> t
+
+  end
+
+  (** Generic library *)
   val create :
-    resolve:(Coq_lib_name.t -> (t option * Coq_lib_name.t) Or_exn.t) -> t
+    ?parent:t -> resolve:(Coq_lib_name.t -> Resolve_result.t) -> t
 
   val create_from_coqlib_stanzas :
     parent:t -> (Path.Build.t * Coq_stanza.Theory.t) list -> t

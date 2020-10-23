@@ -1,13 +1,12 @@
-open! Dune_engine
-open Memo.Build.O
-
 (* This file is licensed under The MIT License *)
 (* (c) MINES ParisTech 2018-2019               *)
-(* (c) INRIA 2020                              *)
-(* Written by: Emilio Jesús Gallego Arias *)
-(* Written by: Rudi Grinberg *)
+(* (c) INRIA 2020-2021                         *)
+(* Written by: Emilio Jesús Gallego Arias      *)
+(* Written by: Rudi Grinberg                   *)
 
 open! Stdune
+open! Dune_engine
+open Memo.Build.O
 open Coq_stanza
 module SC = Super_context
 

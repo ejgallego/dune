@@ -76,18 +76,38 @@ module Error = struct
 end
 
 module DB = struct
+
   type lib = t
 
-  type nonrec t =
-    { boot : (Loc.t * t) option
-    ; libs : t Coq_lib_name.Map.t
+  module Resolve_result = struct
+
+    type t =
+      | Found of lib
+      (** Found (db,name) found at library db [db] with [name] *)
+      | Not_found
+      (** Not found *)
+
+    let not_found = Not_found
+    let found l = Found l
+
+  end
+
+  type db =
+    { boot : (Loc.t * lib) option
+    ; parent : t option
+    ; resolver : Coq_lib_name.t -> Resolve_result.t
+    (* ; libs : lib Coq_lib_name.Map.t *)
     }
+
+  type t = db
 
   let boot_library { boot; _ } = boot
 
-  let create ~resolve:_ =
-    (* let libs = resolve in *)
-    { boot = None; libs = Coq_lib_name.Map.empty }
+  let create ?parent ~resolve =
+    { boot = None
+    ; resolver = resolve
+    ; parent
+    }
 
   let create_from_stanza ((dir, s) : Path.Build.t * Coq_stanza.Theory.t) =
     let name = snd s.name in
@@ -103,12 +123,21 @@ module DB = struct
       } )
 
   (* Should we register errors and printers, or raise is OK? *)
-  let create_from_coqlib_stanzas ~parent:_ sl =
+  let create_from_coqlib_stanzas ~parent sl =
     let libs =
       match Coq_lib_name.Map.of_list_map ~f:create_from_stanza sl with
       | Ok m -> m
       | Error (_name, _w1, (_, w2)) ->
         Result.ok_exn (Error.duplicate_theory_name w2)
+    in
+    let resolver name =
+      match Coq_lib_name.Map.find libs name with
+      | Some s ->
+        (* if (not allow_private_deps) && Option.is_none s.package then
+         *   Error.private_deps_not_allowed ~loc s
+         * else *)
+        Resolve_result.Found s
+      | None -> Not_found
     in
     let boot =
       match List.find_all ~f:(fun (_, s) -> s.Coq_stanza.Theory.boot) sl with
@@ -117,16 +146,16 @@ module DB = struct
       | _ :: (_, s2) :: _ ->
         Result.ok_exn (Error.duplicate_boot_lib ~loc:s2.buildable.loc s2)
     in
-    { boot; libs }
+    { boot; parent; resolver }
 
   let resolve ?(allow_private_deps = true) db (loc, name) =
-    match Coq_lib_name.Map.find db.libs name with
-    | Some s ->
+    match db.resolver name with
+    | Found s ->
       if (not allow_private_deps) && Option.is_none s.package then
         Error.private_deps_not_allowed ~loc s
       else
         Ok s
-    | None -> Error.theory_not_found ~loc name
+    | Not_found -> Error.theory_not_found ~loc name
 
   let find_many t ~loc = Result.List.map ~f:(fun name -> resolve t (loc, name))
 

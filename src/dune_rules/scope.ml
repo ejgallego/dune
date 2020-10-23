@@ -196,17 +196,16 @@ module DB = struct
               (Coq_lib_name.to_string name)
           ]
     in
-    let coq_resolve t (public_libs : Dune_project.t Coq_lib_name.Map.t)
-          (name : Coq_lib_name.t) : (Coq_lib.DB.t option * Coq_lib_name.t) Or_exn.t =
+    let coq_resolve t (public_libs : Dune_project.t Coq_lib_name.Map.t) name =
       match Coq_lib_name.Map.find public_libs name with
       | None ->
-        Error User_error.(E (make [Pp.text "coq_resolve: not_found"]))
+        Coq_lib.DB.Resolve_result.not_found
       | Some project ->
         let scope = find_by_project (Fdecl.get t) project in
-        Ok (Some scope.coq_db, name)
+        Coq_lib.DB.Resolve_result.found scope.coq_db name
     in
     let resolve = coq_resolve t public_libs in
-    Coq_lib.DB.create ~resolve
+    Coq_lib.DB.create ?parent:None ~resolve
 
   let scopes_by_dir context ~projects_by_package ~modules_of_lib ~projects
       ~public_libs ~coq_public_libs stanzas coq_stanzas =
@@ -249,7 +248,8 @@ module DB = struct
           create_db_from_stanzas stanzas ~parent:public_libs ~modules_of_lib
             ~projects_by_package ~lib_config
         in
-        let coq_db = Coq_lib.DB.create_from_coqlib_stanzas ~parent:coq_public_libs coq_stanzas in
+        let coq_db = Coq_lib.DB.create_from_coqlib_stanzas
+                       ~parent:coq_public_libs coq_stanzas in
         let root =
           Path.Build.append_source context.build_dir (Dune_project.root project)
         in
