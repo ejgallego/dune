@@ -1,11 +1,9 @@
+(* This file is licensed under The MIT License           *)
+(* (c) MINES ParisTech 2018-2019                         *)
+(* (c) INRIA 2020                                        *)
+(* Written by: Emilio Jesús Gallego Arias, Rudi Grinberg *)
+
 open! Dune_engine
-
-(* This file is licensed under The MIT License *)
-(* (c) MINES ParisTech 2018-2019               *)
-(* Written by: Emilio Jesús Gallego Arias *)
-
-(* Build rules for Coq's .v -> .vo files *)
-
 open! Stdune
 open Coq_stanza
 
