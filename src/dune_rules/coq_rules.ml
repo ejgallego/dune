@@ -23,7 +23,7 @@ module Util = struct
   let coq_nativelib_cmi_dirs ts =
     List.fold_left ts ~init:Path.Set.empty ~f:(fun acc t ->
         let info = Lib.info t in
-        (* We want the directory with the cmi files *)
+        (* We want the cmi files *)
         let obj_dir = Obj_dir.public_cmi_dir (Lib_info.obj_dir info) in
         Path.Set.add acc obj_dir)
 
@@ -396,19 +396,29 @@ let coq_modules_of_theory ~sctx lib =
   let coq_sources = Dir_contents.coq dir_contents in
   Coq_sources.library coq_sources ~name
 
-let ffi_rule ~dir ~coqffi ~expander (s : string) : Action.t Build.With_targets.t =
+let ffi_rule ~dir ~coqffi ~lib_db (s : string) : Action.t Build.With_targets.t =
   let ml_lib_name, coq_module_name = Coq_stanza.Theory.ffi_parse_name s in
   let coq_v_name = Path.Build.relative dir (coq_module_name ^ ".v") in
 
-  (* Get the path to the cmi file *)
-  (* We need help here! The below fails with wrong dune *)
-  let expand_expr = String_with_vars.make_var Loc.none ~payload:ml_lib_name "cmi" in
-  let cmi_path = Expander.expand_path expander expand_expr in
+  let cmi_path =
+    let open Result.O in
+    let* ml_lib = Lib.DB.resolve lib_db (Loc.none, Lib_name.of_string ml_lib_name) in
+    let info = Lib.info ml_lib in
+    let obj_dir = Obj_dir.public_cmi_dir (Lib_info.obj_dir info) in
+    Result.Ok (Path.relative obj_dir (coq_module_name ^ ".cmi"))
+  in
+  let args = Command.of_result_map cmi_path
+               ~f:(fun cmi_path ->
+                 Command.Args.S
+                   [ Command.Args.Path cmi_path
+                   ; A "-o"
+                   ; Command.Args.Target coq_v_name])
+  in
 
-  let args = [ Command.Args.Path cmi_path; A "-o"; Command.Args.Target coq_v_name] in
+  (* We want the cmi file *)
   let open Build.With_targets.O in
-  Build.with_no_targets (Build.path cmi_path) >>>
-  Command.run ~dir:(Path.build dir) coqffi args
+  Build.with_no_targets (Build.of_result_map cmi_path ~f:(fun cmi_path -> Build.path cmi_path)) >>>
+  Command.run ~dir:(Path.build dir) coqffi [args]
 
 let source_rule ~sctx theories =
   (* sources for depending libraries coqdep requires all the files to be in the
@@ -448,8 +458,8 @@ let setup_rules ~sctx ~dir ~dir_contents (s : Theory.t) =
     source_rule ~sctx theories
   in
 
-  let expander = cctx.expander in
-  let ffi_rules = List.map ~f:(ffi_rule ~dir ~expander ~coqffi:cctx.coqffi) s.ffi_modules in
+  let lib_db = Scope.libs scope in
+  let ffi_rules = List.map ~f:(ffi_rule ~dir ~lib_db ~coqffi:cctx.coqffi) s.ffi_modules in
 
   List.concat_map coq_modules ~f:(fun m ->
       let cctx = Context.for_module cctx m in
