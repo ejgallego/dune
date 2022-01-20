@@ -30,7 +30,7 @@ module Util = struct
   let include_flags ts = include_paths ts |> Lib.L.to_iflags
 
   (* coqdep expects an mlpack file next to the sources otherwise it
-   * will omit the cmxs deps *)
+   * will omit the cmxs deps; we also depend on the META file *)
   let ml_pack_files lib =
     let plugins =
       let info = Lib.info lib in
@@ -42,7 +42,10 @@ module Util = struct
       ; Path.set_extension file ~ext:".mllib"
       ]
     in
-    List.concat_map plugins ~f:to_mlpack
+    (* [XXX] EJGA: I don't see a way to do this, as we need to be able
+       to run in the build layout too *)
+    let meta_file = Path.of_string "" in
+    meta_file :: List.concat_map plugins ~f:to_mlpack
 end
 
 let resolve_program sctx ~loc ~dir prog =
@@ -196,7 +199,9 @@ module Context = struct
       in
       Command.of_result args
 
-  (* compute include flags and mlpack rules *)
+  (* [setup_ml_deps] returns command line flags for coqc and depends
+     on mlpack/mllib files, which are needed for coqdep; the actual
+     dependency on the .cmxs files is read from coqdep *)
   let setup_ml_deps ~lib_db libs theories =
     (* Pair of include flags and paths to mlpack *)
     let libs =
